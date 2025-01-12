@@ -12,7 +12,7 @@ var (
 )
 
 type Configuration struct {
-	ServerSettings Settings `json:"settings"`
+	ServerSettings *Settings `json:"settings"`
 
 	Clients []Client `json:"client_list"`
 }

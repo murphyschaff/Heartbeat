@@ -12,6 +12,7 @@ func api() {
 	router.GET("/settings", getSettings)
 	router.GET("/clients", getClients)
 	router.GET("/client/:name", getClientByName)
+	router.GET("/status", getStatus)
 
 	//POST commands
 	router.POST("/settings/update", setSettings)
@@ -33,7 +34,7 @@ func setSettings(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "settings could not be updated"})
 		return
 	}
-	CONFIGURATION.ServerSettings = newSettings
+	CONFIGURATION.ServerSettings = &newSettings
 	SaveCONFIGURATION()
 	c.IndentedJSON(http.StatusOK, CONFIGURATION.ServerSettings)
 }
@@ -85,4 +86,8 @@ func setUpdateClient(c *gin.Context) {
 		}
 	}
 	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "client not found"})
+}
+
+func getStatus(c *gin.Context) {
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "running"})
 }

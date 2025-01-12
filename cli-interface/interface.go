@@ -9,18 +9,27 @@ import (
 
 type HeartbeatInterface struct {
 	*cli.BaseInterface
+	FunctionMap map[string]func(...string)
 }
+
+var (
+	HeartbeatInt = &HeartbeatInterface{FunctionMap: map[string]func(...string){
+		"get":    GetFunction,
+		"set":    SetFunction,
+		"status": HeartbeatStatus,
+	}}
+)
 
 func main() {
 	fmt.Println("Starting Heartbeat-Helper")
 
 	basecli, err := cli.NewInterface("Heartbeat", "./heartbeat-commands.json")
-	cli := &HeartbeatInterface{BaseInterface: basecli}
+	HeartbeatInt.BaseInterface = basecli
 
 	if err != nil {
 		err = fmt.Errorf("unable to start Heartbeat-Helper: %v", err)
 	} else {
-		err = cli.Run()
+		err = cli.Run(HeartbeatInt)
 		if err != nil {
 			err = fmt.Errorf("error while running interface: %v", err)
 		}
@@ -29,12 +38,28 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error while running Heartbeat-Helper: %v", err)
 		os.Exit(1)
-	} else {
-		fmt.Printf("Heartbeat-Helper closed normally")
 	}
 }
 
 func (h *HeartbeatInterface) Query(query []string) error {
-	fmt.Println("This is the local instance")
+	if function, exists := h.FunctionMap[query[0]]; exists {
+		function() // Call the function
+	} else {
+		fmt.Println("Function not found!")
+	}
 	return nil
+}
+
+//~~~~~~~interface running commands~~~~~~~~
+
+func GetFunction(options ...string) {
+
+}
+
+func SetFunction(options ...string) {
+
+}
+
+func HeartbeatStatus(NA ...string) {
+
 }

@@ -13,7 +13,7 @@ func main() {
 	//start Heatbeat server instance
 	_, err := os.Stat(CONFIG_FILE)
 	if err != nil {
-		err = fmt.Errorf("unable to find configuration file")
+		err = fmt.Errorf("unable to find configuration file and start Heartbeat: %s", err)
 	} else {
 		err = OpenCONFIGURATION()
 		if err != nil {
