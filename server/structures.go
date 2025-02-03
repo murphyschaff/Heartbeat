@@ -14,29 +14,27 @@ var (
 
 type Configuration struct {
 	ServerSettings *Settings `json:"settings"`
+	Run            bool      `json:"run"`
 
 	Clients []Client   `json:"client_list"`
 	Mutex   sync.Mutex `json:"-"`
 }
 
 // Creates new configuration object, loads data from file
-func NewConfiguration() (*Configuration, error) {
-
-	var c Configuration
-
+func (c *Configuration) Open() error {
 	file, err := os.Open(CONFIG_FILE)
 	if err != nil {
-		return nil, fmt.Errorf("unable to open configuration file: %s", err)
+		return fmt.Errorf("unable to open configuration file: %s", err)
 	}
 	defer file.Close()
 	data, _ := io.ReadAll(file)
 
 	err = json.Unmarshal(data, &c)
 	if err != nil {
-		return nil, fmt.Errorf("unable unmarshalling settings file: %s", err)
+		return fmt.Errorf("unable unmarshalling settings file: %s", err)
 	}
 
-	return &c, nil
+	return nil
 }
 
 // saves current configuration structure to config file
@@ -63,60 +61,52 @@ func (c *Configuration) Save() error {
 // Heartbeat server settings
 type Settings struct {
 	//General
-	SecBtwPct     int    `json:"seconds_between_packet"`
-	APIServerPath string `json:"apipath"`
+	MonitorInterval int    `json:"monitor_interval"`
+	APIServerPath   string `json:"apipath"`
 	//Logging
 	EmailDomain        string `json:"email_domain"`
 	LoggingDestination string `json:"email_dest"`
+	LogDirectoryPath   string `json:"log_directory_path"`
 
 	//HA
 	IsPrimary bool   `json:"HA_primary"`
 	HAPeer    string `json:"HA_peer"`
 	HATimer   int    `json:"HA_timer"`
-
-	//Modules
-	ModuleList []Module `json:"module_list"`
-}
-
-// Heartbeat Module struct ~ used to define modules
-type Module struct {
-	Name           string `json:"Name"`
-	IsPacketModule bool   `json:"pkt_module"`
 }
 
 // Heartbeat server: used to define client servers
 type Client struct {
-	Name      string    `json:"name"`
-	IP        string    `json:"ip"`
-	Status    bool      `json:"status"`
-	Processes []Process `json:"processes"`
-
-	AlertCPUUsage    float64 `json:"alertcpu"`
-	AlertTemperature float64 `json:"alerttemp"`
-	AlertMemory      uint64  `json:"alertmem"`
-	AlertDisk        uint64  `json:"alertdisk"`
+	Name     string    `json:"name"`
+	IP       string    `json:"ip"`
+	Status   bool      `json:"status"`
+	Monitors []Monitor `json:"processes"`
 }
 
-type Process struct {
-	Name string `json:"name"`
+// defines a particular SNMP monitor and the alert values
+// Operator values (>, <) stored as bool (greater than true)
+type Monitor struct {
+	Name         string `json:"name"`
+	OID          string `json:"oid"`
+	AlertWarning bool   `json:"alert_warning"`
 
-	AlertCPUUsage  float64 `json:"alertcpu"`
-	AlertMemory    uint64  `json:"alertmem"`
-	MustRun        bool    `json:"mustrun"`
-	MustForeground bool    `json:"mustforeground"`
+	DownValue       int  `json:"down_value"`
+	DownOperator    bool `json:"down_op"`
+	WarningValue    int  `json:"warning_value"`
+	WarningOperator bool `json:"warning_op"`
 }
 
-// ClientData, data collected from https://github.com/shirou/gopsutil
-type ClientData struct {
-	CPUusage    float64 `json:"cpuusage"`    //cpu.Percent
-	Temperature float64 `json:"temperature"` //sensors.TemperaturesWithContext
-	MemUsage    uint64  `json:"memusage"`    //mem.VirtualMemory
-	DiskUsage   uint64  `json:"diskusage"`   //disk.Usage
+// checks if a monitor has reached the down threashold
+func (m *Monitor) CheckDown(value int) bool {
+	if (m.DownValue > value && m.DownOperator) || (m.DownValue < value && !m.DownOperator) {
+		return true
+	}
+	return false
 }
 
-type ProcessData struct {
-	CPUusage   float64 `json:"cpuusage"`   //process.CPUprecent
-	MemUsage   uint64  `json:"memusage"`   //process.mempercent
-	Running    bool    `json:"running"`    //process.isrunning
-	Background bool    `json:"background"` //process.isbackground
+// checks if a monitor has reached the warning threashold
+func (m *Monitor) CheckWarning(value int) bool {
+	if (m.WarningValue > value && m.WarningOperator) || (m.WarningValue < value && m.WarningOperator) {
+		return true
+	}
+	return false
 }

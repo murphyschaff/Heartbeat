@@ -15,7 +15,7 @@ func main() {
 	if err != nil {
 		err = fmt.Errorf("unable to find configuration file and start Heartbeat: %s", err)
 	} else {
-		err = OpenCONFIGURATION()
+		err = CONFIGURATION.Open()
 		if err != nil {
 			err = fmt.Errorf("unable to start Heartbeat: %s", err)
 		} else {

@@ -60,6 +60,7 @@ func SetFunction(options ...string) {
 
 }
 
+//gets the current status of the heartbeat service (checks if the API is currently up)
 func HeartbeatStatus(NA ...string) {
-
+	resp, err := http.Get()
 }

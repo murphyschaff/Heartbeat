@@ -1,2 +1,4 @@
 github.com/murphyschaff/go-helpers v0.0.0-20241229223022-6cb481262b9c h1:YgORAN3MBZFHHPzvKg4wA9hMZYU8jKF7H6jWQk3zkD0=
 github.com/murphyschaff/go-helpers v0.0.0-20241229223022-6cb481262b9c/go.mod h1:FBKJEuRyT0eK13OuBv8vh3QAKbYsoNDf5ecmhsZKh98=
+github.com/murphyschaff/go-helpers v0.0.0-20250112023759-6ede0bb11656 h1:qry1dUlTrs/r1vce8jpeUNBNyhgzvTo9fffUHpMKdQk=
+github.com/murphyschaff/go-helpers v0.0.0-20250112023759-6ede0bb11656/go.mod h1:FBKJEuRyT0eK13OuBv8vh3QAKbYsoNDf5ecmhsZKh98=
