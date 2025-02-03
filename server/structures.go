@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 var (
@@ -14,30 +15,35 @@ var (
 type Configuration struct {
 	ServerSettings *Settings `json:"settings"`
 
-	Clients []Client `json:"client_list"`
+	Clients []Client   `json:"client_list"`
+	Mutex   sync.Mutex `json:"-"`
 }
 
-// opens and loads configuration from file
-func OpenCONFIGURATION() error {
+// Creates new configuration object, loads data from file
+func NewConfiguration() (*Configuration, error) {
+
+	var c Configuration
 
 	file, err := os.Open(CONFIG_FILE)
 	if err != nil {
-		return fmt.Errorf("unable to open configuration file: %v", err)
+		return nil, fmt.Errorf("unable to open configuration file: %s", err)
 	}
 	defer file.Close()
 	data, _ := io.ReadAll(file)
 
-	err = json.Unmarshal(data, &CONFIGURATION)
+	err = json.Unmarshal(data, &c)
 	if err != nil {
-		return fmt.Errorf("unable unmarshalling settings file: %v", err)
+		return nil, fmt.Errorf("unable unmarshalling settings file: %s", err)
 	}
 
-	return nil
+	return &c, nil
 }
 
 // saves current configuration structure to config file
-func SaveCONFIGURATION() error {
-	json, err := json.MarshalIndent(CONFIGURATION, "", "  ")
+func (c *Configuration) Save() error {
+	c.Mutex.Lock()
+	defer c.Mutex.Unlock()
+	json, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("unable to marshal config: %v", err)
 	}

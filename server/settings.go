@@ -8,6 +8,7 @@ import (
 )
 
 func init() {
+
 	var settings *Settings
 	fmt.Println("Initializing first boot...\nSelect the settings you wish to change")
 	//fill out initial settings, or use default settings
@@ -33,5 +34,4 @@ func init() {
 	}
 
 	CONFIGURATION.ServerSettings = settings
-	SaveCONFIGURATION()
 }

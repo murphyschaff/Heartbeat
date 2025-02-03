@@ -35,7 +35,7 @@ func setSettings(c *gin.Context) {
 		return
 	}
 	CONFIGURATION.ServerSettings = &newSettings
-	SaveCONFIGURATION()
+	CONFIGURATION.Save()
 	c.IndentedJSON(http.StatusOK, CONFIGURATION.ServerSettings)
 }
 
@@ -53,6 +53,7 @@ func addClient(c *gin.Context) {
 		return
 	}
 	CONFIGURATION.Clients = append(CONFIGURATION.Clients, newClient)
+	CONFIGURATION.Save()
 	c.IndentedJSON(http.StatusCreated, CONFIGURATION.Clients)
 }
 
