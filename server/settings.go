@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-
+	//~~~~to be moved~~~
 	var settings *Settings
 	fmt.Println("Initializing first boot...\nSelect the settings you wish to change")
 	//fill out initial settings, or use default settings

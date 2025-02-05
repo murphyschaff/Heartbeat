@@ -18,6 +18,7 @@ func api() {
 	router.POST("/settings/update", setSettings)
 	router.POST("/clients/new", addClient)
 	router.POST("/client/:name/update", setUpdateClient)
+	router.POST("/shutdown", setShutdown)
 
 	router.Run(CONFIGURATION.ServerSettings.APIServerPath)
 }
@@ -91,4 +92,9 @@ func setUpdateClient(c *gin.Context) {
 
 func getStatus(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "running"})
+}
+
+func setShutdown(c *gin.Context) {
+	CONFIGURATION.Run = false
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "Shutdown initiated"})
 }

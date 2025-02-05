@@ -75,38 +75,64 @@ type Settings struct {
 }
 
 // Heartbeat server: used to define client servers
+// Operator: true -> greater than, false -> less than
 type Client struct {
-	Name     string    `json:"name"`
-	IP       string    `json:"ip"`
-	Status   bool      `json:"status"`
-	Monitors []Monitor `json:"processes"`
+	Name   string `json:"name"`
+	IP     string `json:"ip"`
+	Status bool   `json:"status"`
+
+	Monitors []Monitor `json:"monitors"`
 }
 
-// defines a particular SNMP monitor and the alert values
-// Operator values (>, <) stored as bool (greater than true)
+// checks and alerts on the monitor
+func (c *Client) CheckAndAlertMonitorStatus(OID string, value int, logger *Logger) {
+	monitor := c.GetMonitorByOID(OID)
+
+	if monitor != nil {
+		switch {
+		case (monitor.CriticalValue > value && monitor.CriticalOperator) || (monitor.CriticalValue < value && !monitor.CriticalOperator):
+			//warning alert is generated
+			message := fmt.Sprintf("Sensor '%s' is in critical on '%s': Current value: %d", monitor.Name, c.Name, value)
+			logger.Log("CRITICAL", message, true)
+		case (monitor.WarningValue > value && monitor.WarningOperator) || (monitor.WarningValue < value && !monitor.WarningOperator):
+			message := fmt.Sprintf("Sensor '%s' is down on '%s': Current value: %d", monitor.Name, c.Name, value)
+			if monitor.AlertWarning {
+				logger.Log("WARNING", message, true)
+			} else {
+				logger.Log("WARNING", message, false)
+			}
+		}
+	} else {
+		message := fmt.Sprintf("unable to find matching OID %s on client '%s'", OID, c.Name)
+		logger.Log("INFO", message, false)
+	}
+}
+
+// gets a string slice of all the oids on the monitor
+func (c *Client) GetOIDS() []string {
+	var oids []string
+	for _, monitor := range c.Monitors {
+		oids = append(oids, monitor.OID)
+	}
+	return oids
+}
+
+// returns an Monitor object with a matching OID, nil if not found
+func (c *Client) GetMonitorByOID(OID string) *Monitor {
+	for _, monitor := range c.Monitors {
+		if monitor.OID == OID {
+			return &monitor
+		}
+	}
+	return nil
+}
+
 type Monitor struct {
-	Name         string `json:"name"`
-	OID          string `json:"oid"`
-	AlertWarning bool   `json:"alert_warning"`
-
-	DownValue       int  `json:"down_value"`
-	DownOperator    bool `json:"down_op"`
-	WarningValue    int  `json:"warning_value"`
-	WarningOperator bool `json:"warning_op"`
-}
-
-// checks if a monitor has reached the down threashold
-func (m *Monitor) CheckDown(value int) bool {
-	if (m.DownValue > value && m.DownOperator) || (m.DownValue < value && !m.DownOperator) {
-		return true
-	}
-	return false
-}
-
-// checks if a monitor has reached the warning threashold
-func (m *Monitor) CheckWarning(value int) bool {
-	if (m.WarningValue > value && m.WarningOperator) || (m.WarningValue < value && m.WarningOperator) {
-		return true
-	}
-	return false
+	Name             string `json:"name"`
+	OID              string `json:"oid"`
+	CriticalValue    int    `json:"critical_value"`
+	CriticalOperator bool   `json:"critical_operator"`
+	WarningValue     int    `json:"warning_value"`
+	WarningOperator  bool   `json:"warning_operator"`
+	AlertWarning     bool   `json:"alert_warning"`
 }

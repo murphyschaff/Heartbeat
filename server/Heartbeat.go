@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/gosnmp/gosnmp"
 )
 
 var (
 	//create channels for error logging
 	monitor = make(chan string)
-	status  = make(chan string)
+	client  string
 )
 
 func Heartbeat() error {
@@ -25,65 +27,87 @@ func Heartbeat() error {
 // gathers data for each client based each time the specified scheduler runs
 func scheduler() error {
 	ctx, cancel := context.WithCancel(context.Background())
-	sysLog := NewLogger("Heartbeat System", CONFIGURATION.ServerSettings.LogDirectoryPath)
+	sysLog := NewLogger("Heartbeat System", CONFIGURATION.ServerSettings.LogDirectoryPath, true)
 
 	//scheduler for monitor data collection
-	go RunMonitor(ctx, sysLog)
-	//scheduler for collecting configuration updates, and total system status
-	go RunCheckStatus(ctx, cancel, sysLog)
+	go RunMonitor(ctx, cancel, sysLog)
 
 	switch {
 	case monitor != nil:
 		return fmt.Errorf("error in running system monitor: %s", monitor)
-	case status != nil:
-		return fmt.Errorf("error in running system status: %s", status)
 	default:
 		return nil
 	}
 }
 
-func RunMonitor(ctx context.Context, logger *Logger) {
+func RunMonitor(ctx context.Context, cancel context.CancelFunc, logger *Logger) {
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Log("INFO", "System monitor is shutting down normally.", false)
 			return
 		default:
+			logger.Log("INFO", "Starting new monitor job", false)
 			var tasks sync.WaitGroup
 			tasks.Add(len(CONFIGURATION.Clients))
 
 			for _, client := range CONFIGURATION.Clients {
 				//find all the related data for each client
+				go GetClientData(&client)
+			}
+
+			//acknowledge errors from session
+			if client != "" {
+				message := fmt.Sprintf("Monitor job complete. Errors from monitoring session: %s", client)
+				logger.Log("INFO", message, false)
+				client = ""
+			} else {
+				logger.Log("INFO", "Monitor job complete. No errors during this job", false)
 			}
 
 			tasks.Wait()
-
-			time.Sleep(time.Duration(CONFIGURATION.ServerSettings.MonitorInterval))
+			ctime := time.Now()
+			delta := time.Duration(CONFIGURATION.ServerSettings.MonitorInterval) * time.Minute
+			//check every 10 seconds for the shutdown command
+			for time.Since(ctime) >= delta {
+				if !CONFIGURATION.Run {
+					logger.Log("INFO", "System monitor is shutting down normally.", false)
+					cancel()
+					return
+				}
+				time.Sleep(10 * time.Second)
+			}
 		}
 	}
 }
 
-func RunCheckStatus(ctx context.Context, cancel context.CancelFunc, logger *Logger) {
-	for {
-		select {
-		case <-ctx.Done():
-			logger.Log("INFO", "System status checker is shutting down normally.", false)
-			return
-		default:
-			//try to read configuration file if there has been an update made
-			err := CONFIGURATION.Open()
-			if err != nil {
-				message := "System status checker is unable to read update to configuration file"
-				logger.Log("FATAL", message, true)
-				status <- message
-				cancel()
-			}
-			//check to see if shutdown requested
-			if !CONFIGURATION.Run {
-				logger.Log("INFO", "System status has read shutdown request. Initializing shutdown", false)
-				cancel()
-				return
-			}
-		}
+func GetClientData(client *Client) error {
+	//establish logger and SNMP client
+	logger := NewLogger(client.Name, CONFIGURATION.ServerSettings.LoggingDestination+"/"+client.Name+".txt", false)
+	snmp := &gosnmp.GoSNMP{Target: client.IP}
+	err := snmp.Connect()
+	if err != nil {
+		message := fmt.Sprintf("unable to connect to snmp: %s", err)
+		logger.Log("FATAL", message, true)
+		return fmt.Errorf(message)
 	}
+	defer snmp.Conn.Close()
+
+	//grab data for each monitor for the client
+	result, err := snmp.Get(client.GetOIDS())
+	if err != nil {
+		message := fmt.Sprintf("errors in getting data from snmp client: %s", err)
+		logger.Log("ERROR", message, false)
+	}
+
+	var values []int
+
+	for _, variable := range result.Variables {
+		values = append(values, variable.Value.(int))
+		//verify if this is within the warning/down threashold for the set OID
+		client.CheckAndAlertMonitorStatus(variable.Name, values[len(values)-1], logger)
+	}
+
+	//~~~~FUTURE~~~ Add options for historical data
+	return nil
 }
