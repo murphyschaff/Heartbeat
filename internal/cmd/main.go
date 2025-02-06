@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/caarlos0/env/v11"
 )
 
 const (
@@ -11,19 +13,15 @@ const (
 
 func main() {
 	//start Heatbeat server instance
-	_, err := os.Stat(CONFIG_FILE)
+	var config Configuration
+
+	err := env.Parse(&config)
 	if err != nil {
-		err = fmt.Errorf("unable to find configuration file and start Heartbeat: %s", err)
+		err = fmt.Errorf("unable to read .env file and start Heartbeat: %s", err)
 	} else {
-		err = CONFIGURATION.Open()
+		err = Heartbeat()
 		if err != nil {
-			err = fmt.Errorf("unable to start Heartbeat: %s", err)
-		} else {
-			//runs normal program
-			err = Heartbeat()
-			if err != nil {
-				err = fmt.Errorf("error while running Heartbeat: %s", err)
-			}
+			err = fmt.Errorf("error while running Heartbeat: %s", err)
 		}
 	}
 

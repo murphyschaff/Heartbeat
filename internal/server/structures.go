@@ -1,10 +1,7 @@
-package main
+package Heartbeat
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"sync"
 )
 
@@ -13,49 +10,11 @@ var (
 )
 
 type Configuration struct {
-	ServerSettings *Settings `json:"settings"`
-	Run            bool      `json:"run"`
+	ServerSettings *Settings
+	Run            bool
 
-	Clients []Client   `json:"client_list"`
-	Mutex   sync.Mutex `json:"-"`
-}
-
-// Creates new configuration object, loads data from file
-func (c *Configuration) Open() error {
-	file, err := os.Open(CONFIG_FILE)
-	if err != nil {
-		return fmt.Errorf("unable to open configuration file: %s", err)
-	}
-	defer file.Close()
-	data, _ := io.ReadAll(file)
-
-	err = json.Unmarshal(data, &c)
-	if err != nil {
-		return fmt.Errorf("unable unmarshalling settings file: %s", err)
-	}
-
-	return nil
-}
-
-// saves current configuration structure to config file
-func (c *Configuration) Save() error {
-	c.Mutex.Lock()
-	defer c.Mutex.Unlock()
-	json, err := json.MarshalIndent(c, "", "  ")
-	if err != nil {
-		return fmt.Errorf("unable to marshal config: %v", err)
-	}
-
-	file, err := os.Create(CONFIG_FILE)
-	if err != nil {
-		return fmt.Errorf("unable to open path file: %v", err)
-	}
-	defer file.Close()
-	_, err = file.Write(json)
-	if err != nil {
-		return fmt.Errorf("unable to write data to config file: %v", err)
-	}
-	return nil
+	Clients []Client
+	Mutex   sync.Mutex
 }
 
 // Heartbeat server settings
