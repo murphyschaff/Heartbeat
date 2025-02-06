@@ -9,13 +9,13 @@ import (
 	"github.com/gosnmp/gosnmp"
 )
 
-var (
-	//create channels for error logging
-	monitor = make(chan string)
-	client  string
-)
-
-func Heartbeat() error {
+func Heartbeat(config *Configuration) error {
+	CONFIGURATION = config
+	//get client data from file
+	err := DATA.Load()
+	if err != nil {
+		return fmt.Errorf("unable to load initial data: %s", err)
+	}
 	//load API
 	api()
 
@@ -27,17 +27,11 @@ func Heartbeat() error {
 // gathers data for each client based each time the specified scheduler runs
 func scheduler() error {
 	ctx, cancel := context.WithCancel(context.Background())
-	sysLog := NewLogger("Heartbeat System", CONFIGURATION.ServerSettings.LogDirectoryPath, true)
+	sysLog := NewLogger("Heartbeat System", CONFIGURATION.LogDirectoryPath, true)
 
 	//scheduler for monitor data collection
 	go RunMonitor(ctx, cancel, sysLog)
-
-	switch {
-	case monitor != nil:
-		return fmt.Errorf("error in running system monitor: %s", monitor)
-	default:
-		return nil
-	}
+	return nil
 }
 
 func RunMonitor(ctx context.Context, cancel context.CancelFunc, logger *Logger) {
@@ -49,28 +43,19 @@ func RunMonitor(ctx context.Context, cancel context.CancelFunc, logger *Logger) 
 		default:
 			logger.Log("INFO", "Starting new monitor job", false)
 			var tasks sync.WaitGroup
-			tasks.Add(len(CONFIGURATION.Clients))
+			tasks.Add(len(DATA.Clients))
 
-			for _, client := range CONFIGURATION.Clients {
+			for _, client := range DATA.Clients {
 				//find all the related data for each client
 				go GetClientData(&client)
 			}
 
-			//acknowledge errors from session
-			if client != "" {
-				message := fmt.Sprintf("Monitor job complete. Errors from monitoring session: %s", client)
-				logger.Log("INFO", message, false)
-				client = ""
-			} else {
-				logger.Log("INFO", "Monitor job complete. No errors during this job", false)
-			}
-
 			tasks.Wait()
 			ctime := time.Now()
-			delta := time.Duration(CONFIGURATION.ServerSettings.MonitorInterval) * time.Minute
+			delta := time.Duration(CONFIGURATION.MonitorInterval) * time.Minute
 			//check every 10 seconds for the shutdown command
 			for time.Since(ctime) >= delta {
-				if !CONFIGURATION.Run {
+				if !RUN {
 					logger.Log("INFO", "System monitor is shutting down normally.", false)
 					cancel()
 					return
@@ -83,7 +68,7 @@ func RunMonitor(ctx context.Context, cancel context.CancelFunc, logger *Logger) 
 
 func GetClientData(client *Client) error {
 	//establish logger and SNMP client
-	logger := NewLogger(client.Name, CONFIGURATION.ServerSettings.LoggingDestination+"/"+client.Name+".txt", false)
+	logger := NewLogger(client.Name, CONFIGURATION.LoggingDestination+"/"+client.Name+".txt", false)
 	snmp := &gosnmp.GoSNMP{Target: client.IP}
 	err := snmp.Connect()
 	if err != nil {

@@ -1,36 +1,70 @@
 package Heartbeat
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 )
 
 var (
-	CONFIGURATION Configuration
+	CONFIGURATION *Configuration
+	DATA          *ClientData
+	RUN           = true
 )
 
 type Configuration struct {
-	ServerSettings *Settings
-	Run            bool
-
-	Clients []Client
-	Mutex   sync.Mutex
-}
-
-// Heartbeat server settings
-type Settings struct {
 	//General
-	MonitorInterval int    `json:"monitor_interval"`
-	APIServerPath   string `json:"apipath"`
+	MonitorInterval int    `env:"MONITOR_INTERVAL,required" json:"monitor_interval"` //interval in minutes
+	APIServerPath   string `env:"API_PATH,required" json:"api_path"`
 	//Logging
-	EmailDomain        string `json:"email_domain"`
-	LoggingDestination string `json:"email_dest"`
-	LogDirectoryPath   string `json:"log_directory_path"`
+	EmailDomain        string `env:"EMAIL_DOMAIN,required" json:"email_domain"`
+	LoggingDestination string `env:"DESTINATION_DOMAIN,required" json:"logging_destination"`
+	LogDirectoryPath   string `env:"LOG_DIR_PATH,required" json:"logging_path"`
 
 	//HA
-	IsPrimary bool   `json:"HA_primary"`
-	HAPeer    string `json:"HA_peer"`
-	HATimer   int    `json:"HA_timer"`
+	EnableHA  bool   `env:"HA_ENABLE,required" json:"enable_ha"`
+	IsPrimary bool   `env:"IS_PRIMARY" json:"is_primary"`
+	HAPeer    string `env:"PEER_IP" json:"ha_peer"`
+	HATimer   int    `env:"PEER_TIMER" json:"ha_timer"`
+
+	//Data
+	ClientDataFile string `env:"CLIENT_DATA_FILE" json:"client_data_file"`
+}
+
+// Heartbeat ClientData: wrapper struct to hold and control current client data
+type ClientData struct {
+	Clients []Client   `json:"clients"`
+	Mutex   sync.Mutex `json:"-"`
+}
+
+// reads client data from file
+func (d *ClientData) Load() error {
+	file, err := os.Open(CONFIGURATION.ClientDataFile)
+	if err != nil {
+		return fmt.Errorf("unable to open client data file: %s", err)
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(d)
+	if err != nil {
+		return fmt.Errorf("unable to parse data from client data file: %s", err)
+	}
+	return nil
+}
+
+// writes client data to data file
+func (d *ClientData) Save() error {
+	file, err := os.Open(CONFIGURATION.ClientDataFile)
+	if err != nil {
+		return fmt.Errorf("unable to open client data file: %s", err)
+	}
+	defer file.Close()
+
+	data, err := json.MarshalIndent(d, "", " ")
+	file.Write(data)
+	return nil
 }
 
 // Heartbeat server: used to define client servers

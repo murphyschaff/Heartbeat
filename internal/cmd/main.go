@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/caarlos0/env/v11"
+	Heartbeat "github.com/murphyschaff/Heartbeat/internal/server"
 )
 
 const (
@@ -13,13 +14,13 @@ const (
 
 func main() {
 	//start Heatbeat server instance
-	var config Configuration
+	var config Heartbeat.Configuration
 
 	err := env.Parse(&config)
 	if err != nil {
 		err = fmt.Errorf("unable to read .env file and start Heartbeat: %s", err)
 	} else {
-		err = Heartbeat()
+		err = Heartbeat.Heartbeat(&config)
 		if err != nil {
 			err = fmt.Errorf("error while running Heartbeat: %s", err)
 		}
