@@ -1,4 +1,4 @@
-module Heartbeat
+module github.com/murphyschaff/Heartbeat
 
 go 1.23.1
 
