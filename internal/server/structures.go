@@ -16,7 +16,7 @@ var (
 type Configuration struct {
 	//General
 	MonitorInterval int    `env:"MONITOR_INTERVAL,required" json:"monitor_interval"` //interval in minutes
-	APIServerPath   string `env:"API_PATH,required" json:"api_path"`
+	APIPort         string `env:"API_PORT,required" json:"api_port"`
 	//Logging
 	EmailDomain        string `env:"EMAIL_DOMAIN,required" json:"email_domain"`
 	LoggingDestination string `env:"DESTINATION_DOMAIN,required" json:"logging_destination"`
@@ -47,7 +47,7 @@ func (d *ClientData) Load() error {
 	defer file.Close()
 
 	decoder := json.NewDecoder(file)
-	err = decoder.Decode(d)
+	err = decoder.Decode(&d.Clients)
 	if err != nil {
 		return fmt.Errorf("unable to parse data from client data file: %s", err)
 	}
@@ -63,6 +63,9 @@ func (d *ClientData) Save() error {
 	defer file.Close()
 
 	data, err := json.MarshalIndent(d, "", " ")
+	if err != nil {
+		return fmt.Errorf("unable to marshal data to file: %s", err)
+	}
 	file.Write(data)
 	return nil
 }

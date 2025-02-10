@@ -8,19 +8,20 @@ import (
 
 func api() {
 	router := gin.Default()
+	grp := router.Group("/api")
 	//GET commands
-	router.GET("/config", getConfig)
-	router.GET("/clients", getClients)
-	router.GET("/client/:name", getClientByName)
-	router.GET("/status", getStatus)
+	grp.GET("/config", getConfig)
+	grp.GET("/clients", getClients)
+	grp.GET("/client/:name", getClientByName)
+	grp.GET("/status", getStatus)
 
 	//POST commands
-	router.POST("/config/update", setConfig)
-	router.POST("/clients/new", addClient)
-	router.POST("/client/:name/update", setUpdateClient)
-	router.POST("/shutdown", setShutdown)
+	grp.POST("/config/update", setConfig)
+	grp.POST("/clients/new", addClient)
+	grp.POST("/client/:name/update", setUpdateClient)
+	grp.POST("/shutdown", setShutdown)
 
-	router.Run(CONFIGURATION.APIServerPath)
+	router.Run(CONFIGURATION.APIPort)
 }
 
 // Settings
@@ -36,6 +37,8 @@ func setConfig(c *gin.Context) {
 		return
 	}
 	CONFIGURATION = &newConfig
+	//update env file
+
 	c.IndentedJSON(http.StatusOK, CONFIGURATION)
 }
 

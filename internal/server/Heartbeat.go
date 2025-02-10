@@ -11,6 +11,8 @@ import (
 
 func Heartbeat(config *Configuration) error {
 	CONFIGURATION = config
+	//initialize DATA
+	DATA = &ClientData{Clients: []Client{}}
 	//get client data from file
 	err := DATA.Load()
 	if err != nil {
