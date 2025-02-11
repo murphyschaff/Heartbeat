@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gosnmp/gosnmp"
+	probing "github.com/prometheus-community/pro-bing"
 )
 
 func Heartbeat(config *Configuration) error {
@@ -18,18 +19,18 @@ func Heartbeat(config *Configuration) error {
 	if err != nil {
 		return fmt.Errorf("unable to load initial data: %s", err)
 	}
-	//load API
-	api()
-
 	//run scheduled jobs
-	scheduler()
+	go scheduler()
+	//start API
+	api()
 	return nil
 }
 
 // gathers data for each client based each time the specified scheduler runs
 func scheduler() error {
 	ctx, cancel := context.WithCancel(context.Background())
-	sysLog := NewLogger("Heartbeat System", CONFIGURATION.LogDirectoryPath, true)
+	sysLog := NewLogger("Heartbeat System", CONFIGURATION.LogDirectoryPath+"/system.txt", true)
+	sysLog.Log("INFO", "Starting up scheduled tasks", false)
 
 	//scheduler for monitor data collection
 	go RunMonitor(ctx, cancel, sysLog)
@@ -70,13 +71,23 @@ func RunMonitor(ctx context.Context, cancel context.CancelFunc, logger *Logger) 
 
 func GetClientData(client *Client) error {
 	//establish logger and SNMP client
-	logger := NewLogger(client.Name, CONFIGURATION.LoggingDestination+"/"+client.Name+".txt", false)
+	logger := NewLogger(client.Name, CONFIGURATION.LogDirectoryPath+"/"+client.Name+".txt", true)
+
+	//check ping on device before attempting SNMP
+	ping, err := RunPing(client.IP)
+	if !ping || err != nil {
+		message := fmt.Sprintf("ping down on client '%s'", client.Name)
+		logger.Log("DOWN", message, true)
+		return nil
+	}
+
+	//ping recieved
 	snmp := &gosnmp.GoSNMP{Target: client.IP}
-	err := snmp.Connect()
+	err = snmp.Connect()
 	if err != nil {
 		message := fmt.Sprintf("unable to connect to snmp: %s", err)
-		logger.Log("FATAL", message, true)
-		return fmt.Errorf(message)
+		logger.Log("DOWN", message, true)
+		return err
 	}
 	defer snmp.Conn.Close()
 
@@ -85,6 +96,7 @@ func GetClientData(client *Client) error {
 	if err != nil {
 		message := fmt.Sprintf("errors in getting data from snmp client: %s", err)
 		logger.Log("ERROR", message, false)
+		return err
 	}
 
 	var values []int
@@ -97,4 +109,28 @@ func GetClientData(client *Client) error {
 
 	//~~~~FUTURE~~~ Add options for historical data
 	return nil
+}
+
+// function that pings IP to see if it is currently available. Returns true if available
+func RunPing(IP string) (bool, error) {
+	ping, err := probing.NewPinger(IP)
+
+	if err != nil {
+		return false, fmt.Errorf("unable to create ping object: %s", err)
+	}
+	ping.Count = 1
+	ping.Timeout = 3 * time.Second
+	ping.SetPrivileged(true)
+
+	err = ping.Run()
+	if err != nil {
+		return false, fmt.Errorf("unable to run ping command: %s", err)
+	}
+
+	result := ping.Statistics()
+	if result.PacketsRecv > 0 {
+		return true, nil
+	} else {
+		return false, nil
+	}
 }

@@ -25,12 +25,24 @@ func NewLogger(ClientName string, FilePath string, stdout bool) *Logger {
 func (l *Logger) Log(alert_type string, message string, alert bool) error {
 	ctime := time.Now()
 	//adds information to the log message
-	formattedLog := fmt.Sprintf("[%s][%s] %s: %s", l.ClientName, ctime, alert_type, message)
+	formattedLog := fmt.Sprintf("[%s][%s] %s: %s\n", l.ClientName, ctime.Format("2006-01-02 15:04:05"), alert_type, message)
 
+	//log to stdout (if seleted)
+	if l.Stdout {
+		fmt.Print(formattedLog)
+	}
+	//send alert if needed
+	if alert {
+		l.Alert(formattedLog)
+	}
 	//adds this log to the file
 	file, err := os.OpenFile(l.FilePath, os.O_APPEND, 0644)
 	if err != nil {
-		return fmt.Errorf("unable to open logging file: %s", err)
+		//create file if one does not exist
+		file, err = os.Create(l.FilePath)
+		if err != nil {
+			return fmt.Errorf("unable to open logging file: %s", err)
+		}
 	}
 	defer file.Close()
 
@@ -39,14 +51,6 @@ func (l *Logger) Log(alert_type string, message string, alert bool) error {
 		return fmt.Errorf("unable to write to logging file %s", err)
 	}
 
-	//log to stdout (if seleted)
-	if l.Stdout {
-		fmt.Println(formattedLog)
-	}
-	//send alert if needed
-	if alert {
-		l.Alert(formattedLog)
-	}
 	return nil
 }
 

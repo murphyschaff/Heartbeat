@@ -123,12 +123,13 @@ func (c *Client) GetMonitorByOID(OID string) *Monitor {
 	return nil
 }
 
+// Structure that represents a endpoint to monitor
 type Monitor struct {
 	Name             string `json:"name"`
 	OID              string `json:"oid"`
 	CriticalValue    int    `json:"critical_value"`
-	CriticalOperator bool   `json:"critical_operator"`
+	CriticalOperator bool   `json:"critical_operator"` //greater than is true
 	WarningValue     int    `json:"warning_value"`
-	WarningOperator  bool   `json:"warning_operator"`
+	WarningOperator  bool   `json:"warning_operator"` //greater than is true
 	AlertWarning     bool   `json:"alert_warning"`
 }
